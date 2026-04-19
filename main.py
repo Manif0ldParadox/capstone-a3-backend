@@ -4,8 +4,9 @@ import csv
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import FastAPI, Depends, HTTPException, Header, Query
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -30,7 +31,13 @@ from auth import hash_password, verify_password, create_access_token, decode_acc
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(
+    title="Automated Inspection Backend API",
+    description="Backend API for Automated Dimensional Inspection System",
+    version="1.0.0"
+)
+
+security = HTTPBearer()
 
 os.makedirs("logs", exist_ok=True)
 os.makedirs("exports", exist_ok=True)
@@ -53,16 +60,10 @@ def get_db():
 
 
 def get_current_user(
-    authorization: str = Header(default=None),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization header missing")
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
-
-    token = authorization.split(" ")[1]
+    token = credentials.credentials
     payload = decode_access_token(token)
 
     if not payload:

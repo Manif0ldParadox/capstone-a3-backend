@@ -46,6 +46,9 @@ class DashboardRecentInspection(BaseModel):
     status: str
     timestamp: datetime
 
+    class Config:
+        from_attributes = True
+
 
 class DashboardResponse(BaseModel):
     total_inspections: int
@@ -127,6 +130,9 @@ class SettingsResponse(BaseModel):
     auto_save: bool
     ng_notification: bool
     sound_alert: bool
+
+    class Config:
+        from_attributes = True
 
 
 class SettingsUpdate(BaseModel):
