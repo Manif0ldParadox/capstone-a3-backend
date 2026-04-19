@@ -31,3 +31,13 @@ capstone-a3/
 ├── inspection.db
 ├── logs/
 └── exports/
+
+## Dummy Accounts
+
+Supervisor:
+- email: supervisor@example.com
+- password: supervisor123
+
+Operator:
+- email: operator@example.com
+- password: operator123
