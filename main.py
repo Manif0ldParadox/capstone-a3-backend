@@ -80,12 +80,6 @@ def get_current_user(
     return user
 
 
-def require_supervisor(current_user: User = Depends(get_current_user)):
-    if current_user.role != "supervisor":
-        raise HTTPException(status_code=403, detail="Supervisor access required")
-    return current_user
-
-
 def ensure_default_settings(db: Session):
     settings = db.query(SystemSettings).first()
     if not settings:
@@ -119,17 +113,16 @@ def health_check():
 def register_user(payload: UserRegister, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == payload.email).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    allowed_roles = ["operator", "supervisor"]
-    if payload.role not in allowed_roles:
-        raise HTTPException(status_code=400, detail="Role must be 'operator' or 'supervisor'")
+        raise HTTPException(
+            status_code=400,
+            detail="Email sudah digunakan, silakan login"
+    )
 
     new_user = User(
         full_name=payload.full_name,
         email=payload.email,
         password_hash=hash_password(payload.password),
-        role=payload.role
+        role=payload.role  # dibebaskan sesuai frontend
     )
 
     db.add(new_user)
@@ -154,7 +147,8 @@ def login_user(payload: UserLogin, db: Session = Depends(get_db)):
 
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": user
     }
 
 
@@ -208,7 +202,11 @@ def start_inspection(
 
     session = InspectionSession(
         session_id=session_id,
-        source=payload.source,
+        inspection_title=payload.inspection_title,
+        worker_name=payload.worker_name,
+        product_line=payload.product_line,
+        product_id=payload.product_id,
+        inspection_type=payload.inspection_type,
         status="active"
     )
 
@@ -220,7 +218,7 @@ def start_inspection(
     return {"session_id": session.session_id}
 
 
-@app.post("/inspection", response_model=InspectionResponse)
+@app.post("/inspection-results", response_model=InspectionResponse)
 def save_inspection(
     payload: InspectionCreate,
     current_user: User = Depends(get_current_user),
@@ -255,7 +253,7 @@ def save_inspection(
 # HISTORY
 # =========================
 
-@app.get("/inspections", response_model=HistoryResponse)
+@app.get("/inspection-results", response_model=HistoryResponse)
 def get_inspections(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
@@ -264,8 +262,8 @@ def get_inspections(
 ):
     query = db.query(InspectionResult)
 
-    if status:
-        query = query.filter(InspectionResult.status == status)
+    if status and status.upper() != "ALL":
+        query = query.filter(InspectionResult.status == status.upper())
 
     if search:
         query = query.filter(
@@ -277,7 +275,25 @@ def get_inspections(
         )
 
     results = query.order_by(InspectionResult.id.desc()).all()
-    return {"data": results}
+
+    return {
+        "total": len(results),
+        "items": results
+    }
+
+
+@app.get("/inspection-results/{inspection_id}", response_model=InspectionResponse)
+def get_inspection_detail(
+    inspection_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    result = db.query(InspectionResult).filter(InspectionResult.id == inspection_id).first()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Inspection result not found")
+
+    return result
 
 
 # =========================
@@ -296,7 +312,7 @@ def get_settings(
 @app.put("/settings", response_model=SettingsResponse)
 def update_settings(
     payload: SettingsUpdate,
-    current_user: User = Depends(require_supervisor),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     settings = ensure_default_settings(db)
@@ -321,9 +337,9 @@ def update_settings(
 # EXPORT
 # =========================
 
-@app.get("/export")
+@app.get("/export/csv")
 def export_inspections(
-    current_user: User = Depends(require_supervisor),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     file_path = f"exports/inspection_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"

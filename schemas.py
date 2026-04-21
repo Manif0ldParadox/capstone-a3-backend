@@ -3,14 +3,14 @@ from datetime import datetime
 
 
 # =========================
-# AUTH
+# USER
 # =========================
 
 class UserRegister(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: str = "operator"
+    role: str
 
 
 class UserLogin(BaseModel):
@@ -18,52 +18,32 @@ class UserLogin(BaseModel):
     password: str
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str
-
-
 class UserResponse(BaseModel):
     id: int
     full_name: str
     email: EmailStr
     role: str
-    created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-# =========================
-# DASHBOARD
-# =========================
-
-class DashboardRecentInspection(BaseModel):
-    id: int
-    session_id: str
-    length_mm: float
-    width_mm: float
-    status: str
-    timestamp: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class DashboardResponse(BaseModel):
-    total_inspections: int
-    ok_count: int
-    ng_count: int
-    ng_rate: float
-    recent_inspections: list[DashboardRecentInspection]
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
 
 
 # =========================
-# INSPECTION START
+# INSPECTION SESSION START
 # =========================
 
 class InspectionStartRequest(BaseModel):
-    source: str = "Camera 1"
+    inspection_title: str
+    worker_name: str
+    product_line: str
+    product_id: str
+    inspection_type: str
 
 
 class InspectionStartResponse(BaseModel):
@@ -79,7 +59,7 @@ class InspectionCreate(BaseModel):
     length_mm: float
     width_mm: float
     status: str
-    source: str
+    source: str = "manual"
     notes: str = ""
     image_path: str | None = None
 
@@ -103,22 +83,21 @@ class InspectionResponse(BaseModel):
 # HISTORY
 # =========================
 
-class HistoryItem(BaseModel):
-    id: int
-    session_id: str
-    length_mm: float
-    width_mm: float
-    status: str
-    source: str
-    notes: str | None = None
-    timestamp: datetime
-
-    class Config:
-        from_attributes = True
-
-
 class HistoryResponse(BaseModel):
-    data: list[HistoryItem]
+    total: int
+    items: list[InspectionResponse]
+
+
+# =========================
+# DASHBOARD
+# =========================
+
+class DashboardResponse(BaseModel):
+    total_inspections: int
+    ok_count: int
+    ng_count: int
+    ng_rate: float
+    recent_inspections: list[InspectionResponse]
 
 
 # =========================
