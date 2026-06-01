@@ -60,7 +60,7 @@ class InspectionCreate(BaseModel):
     width_mm: float
     status: str
     source: str = "manual"
-    notes: str = ""
+    notes: str | None = None
     image_path: str | None = None
 
 
